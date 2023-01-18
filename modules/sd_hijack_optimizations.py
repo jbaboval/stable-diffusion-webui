@@ -11,6 +11,7 @@ from einops import rearrange
 
 from modules import shared, errors, devices
 from modules.hypernetworks import hypernetwork
+from modules import accelerator
 
 from .sub_quadratic_attention import efficient_dot_product_attention
 
@@ -25,14 +26,8 @@ if shared.cmd_opts.xformers or shared.cmd_opts.force_enable_xformers:
 
 
 def get_available_vram():
-    if shared.device.type == 'cuda':
-        stats = torch.cuda.memory_stats(shared.device)
-        mem_active = stats['active_bytes.all.current']
-        mem_reserved = stats['reserved_bytes.all.current']
-        mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
-        mem_free_torch = mem_reserved - mem_active
-        mem_free_total = mem_free_cuda + mem_free_torch
-        return mem_free_total
+    if accelerator.accelerated():
+        return accelerator.get_available_vram()
     else:
         return psutil.virtual_memory().available
 
@@ -189,10 +184,10 @@ def einsum_op_tensor_mem(q, k, v, max_tensor_mb):
     return einsum_op_slice_1(q, k, v, max(q.shape[1] // div, 1))
 
 def einsum_op_cuda(q, k, v):
-    stats = torch.cuda.memory_stats(q.device)
+    stats = accelerator.memory_stats(q.device)
     mem_active = stats['active_bytes.all.current']
     mem_reserved = stats['reserved_bytes.all.current']
-    mem_free_cuda, _ = torch.cuda.mem_get_info(q.device)
+    mem_free_cuda = accelerator.get_free_memory()
     mem_free_torch = mem_reserved - mem_active
     mem_free_total = mem_free_cuda + mem_free_torch
     # Divide factor of safety as there's copying and fragmentation

@@ -44,7 +44,7 @@ class UpscalerSwinIR(Upscaler):
         model = model.to(device_swinir, dtype=devices.dtype)
         img = upscale(img, model)
         try:
-            torch.cuda.empty_cache()
+            accelerator.empty_cache()
         except:
             pass
         return img

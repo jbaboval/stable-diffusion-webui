@@ -10,7 +10,7 @@ from tqdm import tqdm
 from basicsr.utils.download_util import load_file_from_url
 
 import modules.upscaler
-from modules import devices, modelloader
+from modules import accelerator, devices, modelloader
 from scunet_model_arch import SCUNet as net
 from modules.shared import opts
 from modules import images
@@ -88,8 +88,7 @@ class UpscalerScuNET(modules.upscaler.Upscaler):
         return output
 
     def do_upscale(self, img: PIL.Image.Image, selected_file):
-
-        torch.cuda.empty_cache()
+        accelerator.empty_cache()
 
         model = self.load_model(selected_file)
         if model is None:
@@ -113,7 +112,7 @@ class UpscalerScuNET(modules.upscaler.Upscaler):
         torch_output = torch_output[:, :h * 1, :w * 1] # remove padding, if any
         np_output: np.ndarray = torch_output.float().cpu().clamp_(0, 1).numpy()
         del torch_img, torch_output
-        torch.cuda.empty_cache()
+        accelerator.empty_cache()
 
         output = np_output.transpose((1, 2, 0))  # CHW to HWC
         output = output[:, :, ::-1]  # BGR to RGB

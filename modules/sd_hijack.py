@@ -272,5 +272,6 @@ def register_buffer(self, name, attr):
     setattr(self, name, attr)
 
 
+print("Monkey patching register_buffer")
 ldm.models.diffusion.ddim.DDIMSampler.register_buffer = register_buffer
 ldm.models.diffusion.plms.PLMSSampler.register_buffer = register_buffer

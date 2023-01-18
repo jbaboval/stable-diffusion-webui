@@ -1,7 +1,7 @@
 import sys
 import contextlib
 import torch
-from modules import errors
+from modules import accelerator, errors
 
 if sys.platform == "darwin":
     from modules import mac_specific
@@ -21,18 +21,10 @@ def extract_device_id(args, name):
     return None
 
 
-def get_cuda_device_string():
-    from modules import shared
-
-    if shared.cmd_opts.device_id is not None:
-        return f"cuda:{shared.cmd_opts.device_id}"
-
-    return "cuda"
-
-
 def get_optimal_device_name():
-    if torch.cuda.is_available():
-        return get_cuda_device_string()
+    accelerator_device = accelerator.get_device()
+    if accelerator_device is not None:
+        return torch.device(accelerator_device)
 
     if has_mps():
         return "mps"
@@ -54,26 +46,11 @@ def get_device_for(task):
 
 
 def torch_gc():
-    if torch.cuda.is_available():
-        with torch.cuda.device(get_cuda_device_string()):
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-
-
-def enable_tf32():
-    if torch.cuda.is_available():
-
-        # enabling benchmark option seems to enable a range of cards to do fp16 when they otherwise can't
-        # see https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/4407
-        if any([torch.cuda.get_device_capability(devid) == (7, 5) for devid in range(0, torch.cuda.device_count())]):
-            torch.backends.cudnn.benchmark = True
-
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+    accelerator.gc()
 
 
 
-errors.run(enable_tf32, "Enabling TF32")
+errors.run(accelerator.enable_tf32, "Enabling TF32")
 
 cpu = torch.device("cpu")
 device = device_interrogate = device_gfpgan = device_esrgan = device_codeformer = None
@@ -94,16 +71,20 @@ def cond_cast_float(input):
 def randn(seed, shape):
     from modules.shared import opts
 
-    torch.manual_seed(seed)
-    if opts.randn_source == "CPU" or device.type == 'mps':
+    if accelerator.accelerated():
+        accelerator.manual_seed(seed)
+    else:
+        torch.manual_seed(seed)
+    if opts.randn_source == "CPU" or device.type in ['mps', 'xpu']:
         return torch.randn(shape, device=cpu).to(device)
+
     return torch.randn(shape, device=device)
 
 
 def randn_without_seed(shape):
     from modules.shared import opts
 
-    if opts.randn_source == "CPU" or device.type == 'mps':
+    if opts.randn_source == "CPU" or device.type in ['mps', 'xpu']:
         return torch.randn(shape, device=cpu).to(device)
     return torch.randn(shape, device=device)
 
@@ -117,7 +98,7 @@ def autocast(disable=False):
     if dtype == torch.float32 or shared.cmd_opts.precision == "full":
         return contextlib.nullcontext()
 
-    return torch.autocast("cuda")
+    return accelerator.autocast(dtype)
 
 
 def without_autocast(disable=False):

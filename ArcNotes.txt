@@ -1,0 +1,61 @@
+# Notes for getting this to work on Intel Arc (so far)
+
+# If using WSL - Update to Win10 22H2 or Win11 then update WSL
+
+PS > wsl --update
+
+# Install Intel basekit
+
+wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \ | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+sudo apt install intel-basekit intel-aikit
+
+wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | sudo apt-key add -
+sudo apt-add-repository 'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu focal main'
+
+# Install run-time packages
+sudo apt-get install intel-opencl-icd intel-level-zero-gpu level-zero intel-media-va-driver-non-free libmfx1
+
+# verify GPU visibility with `sycl-ls`
+```
+[opencl:acc:0] Intel(R) FPGA Emulation Platform for OpenCL(TM), Intel(R) FPGA Emulation Device 1.2 [2022.15.12.0.01_081451]
+[opencl:cpu:1] Intel(R) OpenCL, Intel(R) Core(TM) i5-9600KF CPU @ 3.70GHz 3.0 [2022.15.12.0.01_081451]
+[opencl:gpu:2] Intel(R) OpenCL HD Graphics, Intel(R) Graphics [0x56a0] 3.0 [22.43.24595.30]
+[ext_oneapi_level_zero:gpu:0] Intel(R) Level-Zero, Intel(R) Graphics [0x56a0] 1.3 [1.3.24595]     <----- This one
+```
+
+# Set /usr/bin/python3 to point to Intel python3.9
+(I have not had success with the latest pytorch+xpu unless using the Intel python distribution)
+
+sudo update-alternatives --install /usr/bin/python3 python3 /opt/intel/oneapi/intelpython/python3.9/bin/python3.9 1
+
+# Install pytorch+xpu
+
+TORCH_COMMAND=pip install pillow mkl torch==1.13.0a0 torchvision==0.14.1a0 intel_extension_for_pytorch==1.13.10+xpu -f https://developer.intel.com/ipex-whl-stable-xpu-idp
+
+source /opt/intel/oneapi/setvars.sh
+
+
+# Before trying stable-diffusion, ensure xpu availablilty. If this fails, everything else will fail too:
+
+```
+> python3
+Python 3.9.15 (main, Nov 11 2022, 13:58:57) 
+[GCC 11.2.0] :: Intel Corporation on linux
+Type "help", "copyright", "credits" or "license" for more information.
+Intel(R) Distribution for Python is brought to you by Intel Corporation.
+Please check out: https://software.intel.com/en-us/python-distribution
+>>> import torch
+>>> import intel_extension_for_pytorch
+[W OperatorEntry.cpp:150] Warning: Overriding a previously registered kernel for the same operator and the same dispatch key
+  operator: torchvision::nms
+    no debug info
+  dispatch key: CPU
+  previous kernel: registered at /build/intel-pytorch-extension/csrc/cpu/aten/TorchVisionNms.cpp:47
+       new kernel: registered at /opt/workspace/vision/torchvision/csrc/ops/cpu/nms_kernel.cpp:112 (function registerKernel)
+>>> torch.xpu.is_available()
+True
+```
+
+If that returns false, your system isn't configured right. Fix that first!
+

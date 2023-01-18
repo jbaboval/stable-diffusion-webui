@@ -14,7 +14,7 @@ from skimage import exposure
 from typing import Any, Dict, List, Optional
 
 import modules.sd_hijack
-from modules import devices, prompt_parser, masking, sd_samplers, lowvram, generation_parameters_copypaste, script_callbacks, extra_networks, sd_vae_approx, scripts
+from modules import accelerator, devices, prompt_parser, masking, sd_samplers, lowvram, generation_parameters_copypaste, script_callbacks, extra_networks, sd_vae_approx, scripts
 from modules.sd_hijack import model_hijack
 from modules.shared import opts, cmd_opts, state
 import modules.shared as shared
@@ -425,7 +425,8 @@ def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, see
             cnt = p.sampler.number_of_needed_noises(p)
 
             if eta_noise_seed_delta > 0:
-                torch.manual_seed(seed + eta_noise_seed_delta)
+                #torch.manual_seed(seed + eta_noise_seed_delta)
+                accelerator.manual_seed(seed + eta_noise_seed_delta)
 
             for j in range(cnt):
                 sampler_noises[j].append(devices.randn_without_seed(tuple(noise_shape)))
