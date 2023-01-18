@@ -216,6 +216,7 @@ def prepare_environment():
 
     sys.argv, _ = extract_arg(sys.argv, '-f')
     sys.argv, skip_torch_cuda_test = extract_arg(sys.argv, '--skip-torch-cuda-test')
+    sys.argv, use_intel_oneapi = extract_arg(sys.argv, '--use-intel-oneapi')
     sys.argv, reinstall_xformers = extract_arg(sys.argv, '--reinstall-xformers')
     sys.argv, reinstall_torch = extract_arg(sys.argv, '--reinstall-torch')
     sys.argv, update_check = extract_arg(sys.argv, '--update-check')
@@ -228,12 +229,18 @@ def prepare_environment():
 
     print(f"Python {sys.version}")
     print(f"Commit hash: {commit}")
+    
+    if use_intel_oneapi:
+        skip_torch_cuda_test = True
 
     if reinstall_torch or not is_installed("torch") or not is_installed("torchvision"):
         run(f'"{python}" -m {torch_command}', "Installing torch and torchvision", "Couldn't install torch", live=True)
 
     if not skip_torch_cuda_test:
         run_python("import torch; assert torch.cuda.is_available(), 'Torch is not able to use GPU; add --skip-torch-cuda-test to COMMANDLINE_ARGS variable to disable this check'")
+
+    if use_intel_oneapi:
+        run_python("import torch; import intel_extension_for_pytorch; assert torch.xpu.is_available(), 'Torch is not able to use an Intel GPU. Try running without --use-intel-oneapi'")
 
     if not is_installed("gfpgan"):
         run_pip(f"install {gfpgan_package}", "gfpgan")

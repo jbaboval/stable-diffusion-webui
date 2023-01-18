@@ -12,7 +12,7 @@ import torch
 import tqdm
 from einops import rearrange, repeat
 from ldm.util import default
-from modules import devices, processing, sd_models, shared, sd_samplers, hashes, sd_hijack_checkpoint
+from modules import accelerator, devices, processing, sd_models, shared, sd_samplers, hashes, sd_hijack_checkpoint
 from modules.textual_inversion import textual_inversion, logging
 from modules.textual_inversion.learn_schedule import LearnRateScheduler
 from torch import einsum
@@ -593,7 +593,7 @@ def train_hypernetwork(id_task, hypernetwork_name, learn_rate, batch_size, gradi
             print("Cannot resume from saved optimizer!")
             print(e)
 
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = accelerator.amp.GradScaler()
     
     batch_size = ds.batch_size
     gradient_step = ds.gradient_step
@@ -703,9 +703,9 @@ def train_hypernetwork(id_task, hypernetwork_name, learn_rate, batch_size, gradi
                     last_saved_image = os.path.join(images_dir, forced_filename)
                     hypernetwork.eval()
                     rng_state = torch.get_rng_state()
-                    cuda_rng_state = None
-                    if torch.cuda.is_available():
-                        cuda_rng_state = torch.cuda.get_rng_state_all()
+                    accelerator_rng_state = None
+                    if accelerator.accelerated():
+                        accelerator_rng_state = accelerator.get_rng_state_all()
                     shared.sd_model.cond_stage_model.to(devices.device)
                     shared.sd_model.first_stage_model.to(devices.device)
 
@@ -741,8 +741,8 @@ def train_hypernetwork(id_task, hypernetwork_name, learn_rate, batch_size, gradi
                         shared.sd_model.cond_stage_model.to(devices.cpu)
                         shared.sd_model.first_stage_model.to(devices.cpu)
                     torch.set_rng_state(rng_state)
-                    if torch.cuda.is_available():
-                        torch.cuda.set_rng_state_all(cuda_rng_state)
+                    if accelerator.accelerated():
+                        accelerator.set_rng_state_all(accelerator_rng_state)
                     hypernetwork.train()
                     if image is not None:
                         shared.state.assign_current_image(image)

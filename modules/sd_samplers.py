@@ -397,7 +397,7 @@ class TorchHijack:
 
 # MPS fix for randn in torchsde
 def torchsde_randn(size, dtype, device, seed):
-    if device.type == 'mps':
+    if device.type in ['mps', 'xpu']:
         generator = torch.Generator(devices.cpu).manual_seed(int(seed))
         return torch.randn(size, dtype=dtype, device=devices.cpu, generator=generator).to(device)
     else:

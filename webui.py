@@ -18,7 +18,11 @@ from modules.call_queue import wrap_queued_call, queue_lock, wrap_gradio_gpu_cal
 from modules.paths import script_path
 
 import torch
-
+try:
+    # Intel recommends this is imported immediately after torch
+    import intel_extension_for_pytorch
+except:
+    pass
 # Truncate version number of nightly/local build of PyTorch to not cause exceptions with CodeFormer or Safetensors
 if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)
