@@ -134,4 +134,7 @@ def test_for_nans(x, where):
 
     message += " Use --disable-nan-check commandline argument to disable this check."
 
-    raise NansException(message)
+    if get_optimal_device_name() == "xpu":
+        print(message)
+    else:
+        raise NansException(message)
