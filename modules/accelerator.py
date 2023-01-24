@@ -22,10 +22,16 @@ def accelerated():
     return impl is not None
 
 def get_device():
-    return impl.get_device()
+    if accelerated():
+        return impl.get_device()
+    else:
+        return "cpu"
 
 def autocast(dtype):
     return impl.autocast(dtype)
+
+def amp():
+    return impl.amp()
 
 def optimize(model, dtype):
     return impl.optimize(model, dtype)

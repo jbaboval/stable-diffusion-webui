@@ -229,7 +229,7 @@ def prepare_environment():
 
     print(f"Python {sys.version}")
     print(f"Commit hash: {commit}")
-    
+
     if use_intel_oneapi:
         skip_torch_cuda_test = True
 
