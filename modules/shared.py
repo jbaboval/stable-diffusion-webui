@@ -222,13 +222,13 @@ class State:
         self.textinfo = None
         self.time_start = time.time()
 
-        devices.torch_gc()
+        devices.gc()
 
     def end(self):
         self.job = ""
         self.job_count = 0
 
-        devices.torch_gc()
+        devices.gc()
 
     def set_current_image(self):
         """sets self.current_image from self.current_latent if enough sampling steps have been made after the last call to this"""

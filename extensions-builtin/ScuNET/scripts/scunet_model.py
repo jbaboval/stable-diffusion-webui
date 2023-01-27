@@ -8,7 +8,7 @@ import torch
 from basicsr.utils.download_util import load_file_from_url
 
 import modules.upscaler
-from modules import accelerator, devices, modelloader
+from modules import devices, modelloader
 from scunet_model_arch import SCUNet as net
 
 
@@ -43,7 +43,7 @@ class UpscalerScuNET(modules.upscaler.Upscaler):
         self.scalers = scalers
 
     def do_upscale(self, img: PIL.Image, selected_file):
-        accelerator.empty_cache()
+        devices.empty_cache()
 
         model = self.load_model(selected_file)
         if model is None:
@@ -62,7 +62,7 @@ class UpscalerScuNET(modules.upscaler.Upscaler):
         output = 255. * np.moveaxis(output, 0, 2)
         output = output.astype(np.uint8)
         output = output[:, :, ::-1]
-        accelerator.empty_cache()
+        devices.empty_cache()
         return PIL.Image.fromarray(output, 'RGB')
 
     def load_model(self, path: str):

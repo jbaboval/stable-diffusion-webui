@@ -1,9 +1,77 @@
 import sys, os, shlex
 import contextlib
 import torch
-from modules import accelerator, errors
+from modules import errors
 from packaging import version
 
+from modules.accelerators.cuda_accelerator import CudaAccelerator
+from modules.accelerators.one_api_accelerator import OneApiAccelerator
+
+accelerator = None
+
+if torch.cuda.is_available():
+    print("CUDA is available")
+    accelerator = CudaAccelerator()
+else:
+    try:
+        import intel_extension_for_pytorch
+        if torch.xpu.is_available():
+            print("OneAPI is available")
+            accelerator = OneApiAccelerator()
+    except Exception as e:
+        print(f"Exception: {e}")
+        pass
+
+def accelerated():
+    global accelerator
+    return accelerator is not None
+
+def amp():
+    global accelerator
+    return accelerator.amp()
+
+def optimize(model, dtype):
+    global accelerator
+    return accelerator.optimize(model, dtype)
+
+def memory_stats(device=None):
+    global accelerator
+    return accelerator.memory_stats(device)
+
+def memory_summary():
+    global accelerator
+    return accelerator.memory_summary()
+
+def reset_peak_memory_stats():
+    global accelerator
+    return accelerator.reset_peak_memory_stats()
+
+def get_free_memory():
+    global accelerator
+    return accelerator.get_free_memory()
+
+def get_total_memory():
+    global accelerator
+    return accelerator.get_total_memory()
+
+def empty_cache():
+    global accelerator
+    return accelerator.empty_cache()
+
+def manual_seed(seed):
+    global accelerator
+    if accelerated():
+        accelerator.manual_seed(seed)
+    else:
+        torch.manual_seed(seed)
+
+def gc():
+    global accelerator
+    accelerator.gc()
+
+def enable_tf32():
+    global accelerator
+    return accelerator.enable_tf32()
 
 # has_mps is only available in nightly pytorch (for now) and macOS 12.3+.
 # check `getattr` and try it for compatibility
@@ -28,7 +96,7 @@ def extract_device_id(args, name):
 def get_optimal_device_name():
     accelerator_device = accelerator.get_device()
     if accelerator_device is not None:
-        return torch.device(accelerator_device)
+        return accelerator_device
 
     if has_mps():
         return "mps"
@@ -48,12 +116,6 @@ def get_device_for(task):
 
     return get_optimal_device()
 
-
-def torch_gc():
-    accelerator.gc()
-
-
-
 errors.run(accelerator.enable_tf32, "Enabling TF32")
 
 cpu = torch.device("cpu")
@@ -65,10 +127,7 @@ unet_needs_upcast = False
 
 
 def randn(seed, shape):
-    if accelerator.accelerated():
-        accelerator.manual_seed(seed)
-    else:
-        torch.manual_seed(seed)
+    manual_seed(seed)
 
     if device.type in ['mps', 'xpu']:
         return torch.randn(shape, device=cpu).to(device)
@@ -127,7 +186,7 @@ def test_for_nans(x, where):
 
     message += " Use --disable-nan-check commandline argument to disable this check."
 
-    if get_optimal_device_name() == "xpu":
+    if device.type == "xpu":
         print(message)
     else:
         raise NansException(message)
@@ -143,7 +202,7 @@ def tensor_to_fix(self, *args, **kwargs):
     return orig_tensor_to(self, *args, **kwargs)
 
 
-# MPS workaround for https://github.com/pytorch/pytorch/issues/80800 
+# MPS workaround for https://github.com/pytorch/pytorch/issues/80800
 orig_layer_norm = torch.nn.functional.layer_norm
 def layer_norm_fix(*args, **kwargs):
     if len(args) > 0 and isinstance(args[0], torch.Tensor) and args[0].device.type == 'mps':

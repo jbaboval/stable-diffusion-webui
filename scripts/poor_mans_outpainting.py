@@ -76,7 +76,7 @@ class Script(scripts.Script):
              mask.height - down - (mask_blur//2 if down > 0 else 0)
         ), fill="black")
 
-        devices.torch_gc()
+        devices.gc()
 
         grid = images.split_grid(img, tile_w=p.width, tile_h=p.height, overlap=pixels)
         grid_mask = images.split_grid(mask, tile_w=p.width, tile_h=p.height, overlap=pixels)

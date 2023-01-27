@@ -7,7 +7,7 @@ from modules.shared import opts
 
 
 def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
-    devices.torch_gc()
+    devices.gc()
 
     shared.state.begin()
     shared.state.job = 'extras'
@@ -72,7 +72,7 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
         if extras_mode != 2 or show_extras_results:
             outputs.append(pp.image)
 
-    devices.torch_gc()
+    devices.gc()
 
     return outputs, ui_common.plaintext_to_html(infotext), ''
 

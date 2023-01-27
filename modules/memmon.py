@@ -2,7 +2,7 @@ import threading
 import time
 from collections import defaultdict
 
-from modules import accelerator
+from modules import devices
 
 class MemUsageMonitor(threading.Thread):
     run_flag = None
@@ -23,8 +23,8 @@ class MemUsageMonitor(threading.Thread):
 
         try:
             print(f"Device is {self.device}")
-            accelerator.get_free_memory()
-            accelerator.memory_stats()
+            devices.get_free_memory()
+            devices.memory_stats()
 
         except Exception as e:  # AMD or whatever
             print(f"Warning: caught exception '{e}', memory monitor disabled")
@@ -37,17 +37,17 @@ class MemUsageMonitor(threading.Thread):
         while True:
             self.run_flag.wait()
 
-            accelerator.reset_peak_memory_stats()
+            devices.reset_peak_memory_stats()
             self.data.clear()
 
             if self.opts.memmon_poll_rate <= 0:
                 self.run_flag.clear()
                 continue
 
-            self.data["min_free"] = accelerator.get_free_memory()
+            self.data["min_free"] = devices.get_free_memory()
 
             while self.run_flag.is_set():
-                free = accelerator.get_free_memory()
+                free = devices.get_free_memory()
                 self.data["min_free"] = min(self.data["min_free"], free)
 
                 time.sleep(1 / self.opts.memmon_poll_rate)
@@ -58,25 +58,25 @@ class MemUsageMonitor(threading.Thread):
             print(k, -(v // -(1024 ** 2)))
 
         print(self, 'raw torch memory stats:')
-        tm = accelerator.memory_stats(self.device)
+        tm = devices.memory_stats(self.device)
         for k, v in tm.items():
             if 'bytes' not in k:
                 continue
             print('\t' if 'peak' in k else '', k, -(v // -(1024 ** 2)))
 
-        print(accelerator.memory_summary())
+        print(devices.memory_summary())
 
     def monitor(self):
         self.run_flag.set()
 
     def read(self):
         if not self.disabled:
-            free = accelerator.get_free_memory()
-            total = accelerator.get_total_memory()
+            free = devices.get_free_memory()
+            total = devices.get_total_memory()
             self.data["free"] = free
             self.data["total"] = total
 
-            torch_stats = accelerator.memory_stats(self.device)
+            torch_stats = devices.memory_stats(self.device)
             self.data["active"] = torch_stats["active.all.current"]
             self.data["active_peak"] = torch_stats["active_bytes.all.peak"]
             self.data["reserved"] = torch_stats["reserved_bytes.all.current"]
