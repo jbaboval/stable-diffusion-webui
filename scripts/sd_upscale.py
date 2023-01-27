@@ -44,7 +44,7 @@ class Script(scripts.Script):
         else:
             img = init_img
 
-        devices.torch_gc()
+        devices.gc()
 
         grid = images.split_grid(img, tile_w=p.width, tile_h=p.height, overlap=overlap)
 

@@ -7,7 +7,7 @@ import torch
 
 import modules.face_restoration
 import modules.shared
-from modules import accelerator, shared, devices, modelloader
+from modules import shared, devices, modelloader
 from modules.paths import models_path
 
 # codeformer people made a choice to include modified basicsr library to their project which makes
@@ -106,7 +106,7 @@ def setup_model(dirname):
                             output = self.net(cropped_face_t, w=w if w is not None else shared.opts.code_former_weight, adain=True)[0]
                             restored_face = tensor2img(output, rgb2bgr=True, min_max=(-1, 1))
                         del output
-                        accelerator.empty_cache()
+                        devices.empty_cache()
                     except Exception as error:
                         print(f'\tFailed inference for CodeFormer: {error}', file=sys.stderr)
                         restored_face = tensor2img(cropped_face_t, rgb2bgr=True, min_max=(-1, 1))

@@ -10,7 +10,7 @@ from tqdm import tqdm
 from basicsr.utils.download_util import load_file_from_url
 
 import modules.upscaler
-from modules import accelerator, devices, modelloader
+from modules import devices, modelloader
 from scunet_model_arch import SCUNet as net
 from modules.shared import opts
 from modules import images

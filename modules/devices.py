@@ -1,17 +1,70 @@
 import sys
 import contextlib
 import torch
-from modules import accelerator, errors
+from modules import errors
+
+from modules.accelerators.cuda_accelerator import CudaAccelerator
+from modules.accelerators.mps_accelerator import MPSAccelerator
+from modules.accelerators.one_api_accelerator import OneApiAccelerator
 
 if sys.platform == "darwin":
     from modules import mac_specific
 
+accelerator = None
+# List in priority order; first found will be used
+supported_accelerators = [OneApiAccelerator, MPSAccelerator, CudaAccelerator]
 
-def has_mps() -> bool:
-    if sys.platform != "darwin":
-        return False
+for impl in supported_accelerators:
+    accelerator = impl.discover()
+    if accelerator is not None:
+        break
+
+def accelerated():
+    return accelerator is not None
+
+def amp():
+    return accelerator.amp()
+
+def optimize(model, dtype):
+    return accelerator.optimize(model, dtype)
+
+def memory_stats(device=None):
+    return accelerator.memory_stats(device)
+
+def memory_summary():
+    return accelerator.memory_summary()
+
+def reset_peak_memory_stats():
+    return accelerator.reset_peak_memory_stats()
+
+def get_free_memory():
+    return accelerator.get_free_memory()
+
+def get_total_memory():
+    return accelerator.get_total_memory()
+
+def empty_cache():
+    return accelerator.empty_cache()
+
+def manual_seed(seed):
+    if accelerated():
+        accelerator.manual_seed(seed)
     else:
-        return mac_specific.has_mps
+        torch.manual_seed(seed)
+
+def einsum_op(q, k, v):
+
+
+    # Smaller slices are faster due to L2/L3/SLC caches.
+    # Tested on i7 with 8MB L3 cache.
+    return einsum_op_tensor_mem(q, k, v, 32)
+
+def gc():
+    accelerator.gc()
+
+def enable_tf32():
+    return accelerator.enable_tf32()
+
 
 def extract_device_id(args, name):
     for x in range(len(args)):
@@ -24,10 +77,7 @@ def extract_device_id(args, name):
 def get_optimal_device_name():
     accelerator_device = accelerator.get_device()
     if accelerator_device is not None:
-        return torch.device(accelerator_device)
-
-    if has_mps():
-        return "mps"
+        return accelerator_device
 
     return "cpu"
 
@@ -43,12 +93,6 @@ def get_device_for(task):
         return cpu
 
     return get_optimal_device()
-
-
-def torch_gc():
-    accelerator.gc()
-
-
 
 errors.run(accelerator.enable_tf32, "Enabling TF32")
 
@@ -69,24 +113,11 @@ def cond_cast_float(input):
 
 
 def randn(seed, shape):
-    from modules.shared import opts
-
-    if accelerator.accelerated():
-        accelerator.manual_seed(seed)
-    else:
-        torch.manual_seed(seed)
-    if opts.randn_source == "CPU" or device.type in ['mps', 'xpu']:
-        return torch.randn(shape, device=cpu).to(device)
-
-    return torch.randn(shape, device=device)
-
+    manual_seed(seed)
+    return accelerator.randn(shape)
 
 def randn_without_seed(shape):
-    from modules.shared import opts
-
-    if opts.randn_source == "CPU" or device.type in ['mps', 'xpu']:
-        return torch.randn(shape, device=cpu).to(device)
-    return torch.randn(shape, device=device)
+    return accelerator.randn(shape)
 
 
 def autocast(disable=False):
@@ -134,7 +165,7 @@ def test_for_nans(x, where):
 
     message += " Use --disable-nan-check commandline argument to disable this check."
 
-    if get_optimal_device_name() == "xpu":
+    if device.type == "xpu":
         print(message)
     else:
         raise NansException(message)

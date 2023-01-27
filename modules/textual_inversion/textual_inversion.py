@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image, PngImagePlugin
 from torch.utils.tensorboard import SummaryWriter
 
-from modules import accelerator, shared, devices, sd_hijack, processing, sd_models, images, sd_samplers, sd_hijack_checkpoint
+from modules import shared, devices, sd_hijack, processing, sd_models, images, sd_samplers, sd_hijack_checkpoint
 import modules.textual_inversion.dataset
 from modules.textual_inversion.learn_schedule import LearnRateScheduler
 
@@ -448,7 +448,7 @@ def train_embedding(id_task, embedding_name, learn_rate, batch_size, gradient_st
         else:
             print("No saved optimizer exists in checkpoint")
 
-    scaler = accelerator.amp.GradScaler()
+    scaler = devices.amp.GradScaler()
 
     batch_size = ds.batch_size
     gradient_step = ds.gradient_step

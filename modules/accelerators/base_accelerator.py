@@ -1,13 +1,16 @@
 import abc
 
-class BaseAccelerator():
+class BaseAccelerator(abc.ABC):
+
+    def implements(self, op):
+        return hasattr(self, op) and callable(getattr(self, op))
 
     @abc.abstractmethod
-    def get_device_string(self):
+    def get_device(self):
         raise Exception("Not Implemented!")
         return
 
-    @abc.abstractmethod
+    #@abc.abstractmethod
     def get_available_vram(self):
         raise Exception("Not Implemented!")
         return
@@ -22,12 +25,12 @@ class BaseAccelerator():
         raise Exception("Not Implemented!")
         return
     
-    @abc.abstractmethod
+    #@abc.abstractmethod
     def mem_get_info(self):
         raise Exception("Not Implemented!")
         return
     
-    @abc.abstractmethod
+    #@abc.abstractmethod
     def get_free_memory(self):
         raise Exception("Not Implemented!")
         return

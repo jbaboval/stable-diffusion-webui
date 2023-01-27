@@ -15,7 +15,7 @@ from skimage import exposure
 from typing import Any, Dict, List, Optional
 
 import modules.sd_hijack
-from modules import accelerator, devices, prompt_parser, masking, sd_samplers, lowvram, generation_parameters_copypaste, script_callbacks, extra_networks, sd_vae_approx, scripts
+from modules import devices, prompt_parser, masking, sd_samplers, lowvram, generation_parameters_copypaste, script_callbacks, extra_networks, sd_vae_approx, scripts
 from modules.sd_hijack import model_hijack
 from modules.shared import opts, cmd_opts, state
 import modules.shared as shared
@@ -427,7 +427,7 @@ def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, see
 
             if eta_noise_seed_delta > 0:
                 #torch.manual_seed(seed + eta_noise_seed_delta)
-                accelerator.manual_seed(seed + eta_noise_seed_delta)
+                devices.manual_seed(seed + eta_noise_seed_delta)
 
             for j in range(cnt):
                 sampler_noises[j].append(devices.randn_without_seed(tuple(noise_shape)))
@@ -536,7 +536,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     else:
         assert p.prompt is not None
 
-    devices.torch_gc()
+    devices.gc()
 
     seed = get_fixed_seed(p.seed)
     subseed = get_fixed_seed(p.subseed)
@@ -682,7 +682,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
                 lowvram.send_everything_to_cpu()
 
-            devices.torch_gc()
+            devices.gc()
 
             if p.scripts is not None:
                 p.scripts.postprocess_batch(p, x_samples_ddim, batch_number=n)
@@ -697,10 +697,10 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     if opts.save and not p.do_not_save_samples and opts.save_images_before_face_restoration:
                         images.save_image(Image.fromarray(x_sample), p.outpath_samples, "", seeds[i], prompts[i], opts.samples_format, info=infotext(n, i), p=p, suffix="-before-face-restoration")
 
-                    devices.torch_gc()
+                    devices.gc()
 
                     x_sample = modules.face_restoration.restore_faces(x_sample)
-                    devices.torch_gc()
+                    devices.gc()
 
                 image = Image.fromarray(x_sample)
 
@@ -744,7 +744,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             del x_samples_ddim
 
-            devices.torch_gc()
+            devices.gc()
 
             state.nextjob()
 
@@ -769,7 +769,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if not p.disable_extra_networks and extra_network_data:
         extra_networks.deactivate(p, extra_network_data)
 
-    devices.torch_gc()
+    devices.gc()
 
     res = Processed(p, output_images, p.all_seeds[0], infotext(), comments="".join(["\n\n" + x for x in comments]), subseed=p.all_subseeds[0], index_of_first_image=index_of_first_image, infotexts=infotexts)
 
@@ -958,7 +958,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
 
         # GC now before running the next img2img to prevent running out of memory
         x = None
-        devices.torch_gc()
+        devices.gc()
 
         samples = self.sampler.sample_img2img(self, samples, noise, conditioning, unconditional_conditioning, steps=self.hr_second_pass_steps or self.steps, image_conditioning=image_conditioning)
 
@@ -1120,6 +1120,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             samples = samples * self.nmask + self.init_latent * self.mask
 
         del x
-        devices.torch_gc()
+        devices.gc()
 
         return samples

@@ -12,7 +12,7 @@ import ldm.modules.midas as midas
 
 from ldm.util import instantiate_from_config
 
-from modules import accelerator, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config
+from modules import paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config
 from modules.paths import models_path
 from modules.sd_hijack_inpainting import do_inpainting_hijack
 from modules.timer import Timer
@@ -412,7 +412,7 @@ def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_
         sd_hijack.model_hijack.undo_hijack(shared.sd_model)
         shared.sd_model = None
         gc.collect()
-        devices.torch_gc()
+        devices.gc()
 
     do_inpainting_hijack()
 
@@ -464,6 +464,7 @@ def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_
     timer.record("hijack")
 
     sd_model.eval()
+    sd_model = devices.optimize(sd_model, devices.dtype)
     shared.sd_model = sd_model
 
     sd_hijack.model_hijack.embedding_db.load_textual_inversion_embeddings(force_reload=True)  # Reload embeddings after model load as they may or may not fit the model

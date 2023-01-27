@@ -38,7 +38,7 @@ class DeepDanbooru:
     def stop(self):
         if not shared.opts.interrogate_keep_models_in_memory:
             self.model.to(devices.cpu)
-            devices.torch_gc()
+            devices.gc()
 
     def tag(self, pil_image):
         self.start()
