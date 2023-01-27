@@ -31,6 +31,49 @@ def setup_model(dirname):
         return
 
     try:
+        import re
+        IS_HIGH_VERSION = [int(m) for m in list(re.findall(r"^([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9][a-zA-Z0-9]*)?(\+git.*)?$",\
+            torch.__version__)[0][:3])] >= [1, 12, 0]
+
+        def gpu_is_available():
+            if IS_HIGH_VERSION:
+                if torch.backends.mps.is_available():
+                    return True
+
+            try:
+                import intel_extension_for_pytorch
+                if torch.xpu.is_available():
+                    return True
+            except:
+                pass
+
+            return True if torch.cuda.is_available() and torch.backends.cudnn.is_available() else False
+
+        def get_device(gpu_id=None):
+            if gpu_id is None:
+                gpu_str = ''
+            elif isinstance(gpu_id, int):
+                gpu_str = f':{gpu_id}'
+            else:
+                raise TypeError('Input should be int value.')
+
+            if IS_HIGH_VERSION:
+                if torch.backends.mps.is_available():
+                    return torch.device('mps'+gpu_str)
+
+            try:
+                import intel_extension_for_pytorch
+                if torch.xpu.is_available():
+                    return torch.device('xpu'+gpu_str)
+            except:
+                pass
+
+            return torch.device('cuda'+gpu_str if torch.cuda.is_available() and torch.backends.cudnn.is_available() else 'cpu')
+
+        import basicsr.utils.misc
+        basicsr.utils.misc.get_device = get_device
+        basicsr.utils.misc.gpu_is_available = gpu_is_available
+        
         from torchvision.transforms.functional import normalize
         from modules.codeformer.codeformer_arch import CodeFormer
         from basicsr.utils.download_util import load_file_from_url
