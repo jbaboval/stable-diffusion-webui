@@ -302,7 +302,7 @@ class CFGDenoiser(torch.nn.Module):
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
-        denoised = torch.clone(denoised_uncond)
+        denoised = torch.clone(denoised_uncond.detach())
 
         for i, conds in enumerate(conds_list):
             for cond_index, weight in conds:

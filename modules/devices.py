@@ -2,87 +2,65 @@ import sys, os, shlex
 import contextlib
 import torch
 from modules import errors
-from packaging import version
 
 from modules.accelerators.cuda_accelerator import CudaAccelerator
+from modules.accelerators.mps_accelerator import MPSAccelerator
 from modules.accelerators.one_api_accelerator import OneApiAccelerator
 
 accelerator = None
+# List in priority order; first found will be used
+supported_accelerators = [OneApiAccelerator, MPSAccelerator, CudaAccelerator]
 
-if torch.cuda.is_available():
-    print("CUDA is available")
-    accelerator = CudaAccelerator()
-else:
-    try:
-        import intel_extension_for_pytorch
-        if torch.xpu.is_available():
-            print("OneAPI is available")
-            accelerator = OneApiAccelerator()
-    except Exception as e:
-        print(f"Exception: {e}")
-        pass
+for impl in supported_accelerators:
+    accelerator = impl.discover()
+    if accelerator is not None:
+        break
 
 def accelerated():
-    global accelerator
     return accelerator is not None
 
 def amp():
-    global accelerator
     return accelerator.amp()
 
 def optimize(model, dtype):
-    global accelerator
     return accelerator.optimize(model, dtype)
 
 def memory_stats(device=None):
-    global accelerator
     return accelerator.memory_stats(device)
 
 def memory_summary():
-    global accelerator
     return accelerator.memory_summary()
 
 def reset_peak_memory_stats():
-    global accelerator
     return accelerator.reset_peak_memory_stats()
 
 def get_free_memory():
-    global accelerator
     return accelerator.get_free_memory()
 
 def get_total_memory():
-    global accelerator
     return accelerator.get_total_memory()
 
 def empty_cache():
-    global accelerator
     return accelerator.empty_cache()
 
 def manual_seed(seed):
-    global accelerator
     if accelerated():
         accelerator.manual_seed(seed)
     else:
         torch.manual_seed(seed)
 
+def einsum_op(q, k, v):
+
+
+    # Smaller slices are faster due to L2/L3/SLC caches.
+    # Tested on i7 with 8MB L3 cache.
+    return einsum_op_tensor_mem(q, k, v, 32)
+
 def gc():
-    global accelerator
     accelerator.gc()
 
 def enable_tf32():
-    global accelerator
     return accelerator.enable_tf32()
-
-# has_mps is only available in nightly pytorch (for now) and macOS 12.3+.
-# check `getattr` and try it for compatibility
-def has_mps() -> bool:
-    if not getattr(torch, 'has_mps', False):
-        return False
-    try:
-        torch.zeros(1).to(torch.device("mps"))
-        return True
-    except Exception:
-        return False
 
 
 def extract_device_id(args, name):
@@ -97,9 +75,6 @@ def get_optimal_device_name():
     accelerator_device = accelerator.get_device()
     if accelerator_device is not None:
         return accelerator_device
-
-    if has_mps():
-        return "mps"
 
     return "cpu"
 
@@ -129,16 +104,9 @@ unet_needs_upcast = False
 def randn(seed, shape):
     manual_seed(seed)
 
-    if device.type in ['mps', 'xpu']:
-        return torch.randn(shape, device=cpu).to(device)
-
-    return torch.randn(shape, device=device)
-
 
 def randn_without_seed(shape):
-    if device.type in ['mps', 'xpu']:
-        return torch.randn(shape, device=cpu).to(device)
-    return torch.randn(shape, device=device)
+    return accelerator.randn(shape)
 
 
 def autocast(disable=False):
@@ -192,57 +160,5 @@ def test_for_nans(x, where):
         raise NansException(message)
 
 
-# MPS workaround for https://github.com/pytorch/pytorch/issues/79383
-orig_tensor_to = torch.Tensor.to
-def tensor_to_fix(self, *args, **kwargs):
-    if self.device.type != 'mps' and \
-       ((len(args) > 0 and isinstance(args[0], torch.device) and args[0].type == 'mps') or \
-       (isinstance(kwargs.get('device'), torch.device) and kwargs['device'].type == 'mps')):
-        self = self.contiguous()
-    return orig_tensor_to(self, *args, **kwargs)
 
-
-# MPS workaround for https://github.com/pytorch/pytorch/issues/80800
-orig_layer_norm = torch.nn.functional.layer_norm
-def layer_norm_fix(*args, **kwargs):
-    if len(args) > 0 and isinstance(args[0], torch.Tensor) and args[0].device.type == 'mps':
-        args = list(args)
-        args[0] = args[0].contiguous()
-    return orig_layer_norm(*args, **kwargs)
-
-
-# MPS workaround for https://github.com/pytorch/pytorch/issues/90532
-orig_tensor_numpy = torch.Tensor.numpy
-def numpy_fix(self, *args, **kwargs):
-    if self.requires_grad:
-        self = self.detach()
-    return orig_tensor_numpy(self, *args, **kwargs)
-
-
-# MPS workaround for https://github.com/pytorch/pytorch/issues/89784
-orig_cumsum = torch.cumsum
-orig_Tensor_cumsum = torch.Tensor.cumsum
-def cumsum_fix(input, cumsum_func, *args, **kwargs):
-    if input.device.type == 'mps':
-        output_dtype = kwargs.get('dtype', input.dtype)
-        if output_dtype == torch.int64:
-            return cumsum_func(input.cpu(), *args, **kwargs).to(input.device)
-        elif cumsum_needs_bool_fix and output_dtype == torch.bool or cumsum_needs_int_fix and (output_dtype == torch.int8 or output_dtype == torch.int16):
-            return cumsum_func(input.to(torch.int32), *args, **kwargs).to(torch.int64)
-    return cumsum_func(input, *args, **kwargs)
-
-
-if has_mps():
-    if version.parse(torch.__version__) < version.parse("1.13"):
-        # PyTorch 1.13 doesn't need these fixes but unfortunately is slower and has regressions that prevent training from working
-        torch.Tensor.to = tensor_to_fix
-        torch.nn.functional.layer_norm = layer_norm_fix
-        torch.Tensor.numpy = numpy_fix
-    elif version.parse(torch.__version__) > version.parse("1.13.1"):
-        cumsum_needs_int_fix = not torch.Tensor([1,2]).to(torch.device("mps")).equal(torch.ShortTensor([1,1]).to(torch.device("mps")).cumsum(0))
-        cumsum_needs_bool_fix = not torch.BoolTensor([True,True]).to(device=torch.device("mps"), dtype=torch.int64).equal(torch.BoolTensor([True,False]).to(torch.device("mps")).cumsum(0))
-        torch.cumsum = lambda input, *args, **kwargs: ( cumsum_fix(input, orig_cumsum, *args, **kwargs) )
-        torch.Tensor.cumsum = lambda self, *args, **kwargs: ( cumsum_fix(self, orig_Tensor_cumsum, *args, **kwargs) )
-        orig_narrow = torch.narrow
-        torch.narrow = lambda *args, **kwargs: ( orig_narrow(*args, **kwargs).clone() )
 
