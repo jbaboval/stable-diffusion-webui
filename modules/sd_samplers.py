@@ -389,8 +389,8 @@ class TorchHijack:
             if noise.shape == x.shape:
                 return noise
 
-        if x.device.type in ('mps', 'xpu'):
-            return torch.randn_like(x, device=devices.cpu).to(x.device)
+        if devices.accelerated() and devices.accelerator.implements("randn_like"):
+            return devices.accelerator.randn_like(x, device=devices.cpu).to(x.device)
         else:
             return torch.randn_like(x)
 

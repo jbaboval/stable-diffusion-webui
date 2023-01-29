@@ -103,7 +103,7 @@ unet_needs_upcast = False
 
 def randn(seed, shape):
     manual_seed(seed)
-
+    return accelerator.randn(shape)
 
 def randn_without_seed(shape):
     return accelerator.randn(shape)
@@ -158,7 +158,3 @@ def test_for_nans(x, where):
         print(message)
     else:
         raise NansException(message)
-
-
-
-
