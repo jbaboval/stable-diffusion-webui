@@ -133,7 +133,7 @@ def autocast(disable=False):
 
 
 def without_autocast(disable=False):
-    return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
+    return accelerator.autocast(disable=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
 
 
 class NansException(Exception):
