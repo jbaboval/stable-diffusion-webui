@@ -10,7 +10,7 @@ class BaseAccelerator(abc.ABC):
         raise Exception("Not Implemented!")
         return
 
-    #@abc.abstractmethod
+    @abc.abstractmethod
     def get_available_vram(self):
         raise Exception("Not Implemented!")
         return
@@ -25,12 +25,7 @@ class BaseAccelerator(abc.ABC):
         raise Exception("Not Implemented!")
         return
     
-    #@abc.abstractmethod
-    def mem_get_info(self):
-        raise Exception("Not Implemented!")
-        return
-    
-    #@abc.abstractmethod
+    @abc.abstractmethod
     def get_free_memory(self):
         raise Exception("Not Implemented!")
         return

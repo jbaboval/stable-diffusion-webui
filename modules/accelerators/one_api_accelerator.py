@@ -39,6 +39,12 @@ class OneApiAccelerator(BaseAccelerator):
     def memory_summary(self):
         return torch.xpu.memory_summary()
 
+    def get_available_vram(self):
+        return self.get_total_memory() - torch.xpu.memory_allocated()
+
+    def get_free_memory(self):
+        return self.get_available_vram()
+
     def autocast(self, dtype=None):
         return torch.xpu.amp.autocast(enabled=True, dtype=dtype, cache_enabled=False)
     
@@ -57,8 +63,8 @@ class OneApiAccelerator(BaseAccelerator):
     def get_total_memory(self):
         return 16 * 1024 * 1024 * 1024
 
-    def memory_stats(self):
-        return torch.xpu.memory_stats(self.device)
+    def memory_stats(self, device=None):
+        return torch.xpu.memory_stats(device=self.device if device is None else device)
     
     def get_rng_state_all(self):
         return torch.xpu.get_rng_state_all()
