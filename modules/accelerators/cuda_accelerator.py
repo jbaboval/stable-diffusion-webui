@@ -77,15 +77,15 @@ class CudaAccelerator(BaseAccelerator):
             device = self.device
         return torch.randn(shape, device=device)
 
-    def einsum_op(self, q, k, v):
+    def get_einsum_op_mem(self):
+
         stats = self.memory_stats(q.device)
         mem_active = stats['active_bytes.all.current']
         mem_reserved = stats['reserved_bytes.all.current']
         mem_free_cuda = self.get_free_memory()
         mem_free_torch = mem_reserved - mem_active
         mem_free_total = mem_free_cuda + mem_free_torch
-        # Divide factor of safety as there's copying and fragmentation
-        return einsum_op_tensor_mem(q, k, v, mem_free_total / 3.3 / (1 << 20))
+        return mem_free_total / 3.3 / (1 << 20)
 
     @property
     def amp(self):

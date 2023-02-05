@@ -169,12 +169,14 @@ def einsum_op_tensor_mem(q, k, v, max_tensor_mb):
 
 
 def einsum_op(q, k, v):
-    if hasattr(devices.accelerator, "einsum_op") and callable(getattr(devices.accelerator, "einsum_op")):
-        return devices.accelerator.einsum_op(q, k, v)
+    if hasattr(devices.accelerator, "get_einsum_op_mem") and callable(getattr(devices.accelerator, "get_einsum_op_mem")):
+        tensor_mem = devices.accelerator.get_einsum_op_mem()
+    else:
+        # Smaller slices are faster due to L2/L3/SLC caches.
+        # Tested on i7 with 8MB L3 cache.
+        tensor_mem = 32
 
-    # Smaller slices are faster due to L2/L3/SLC caches.
-    # Tested on i7 with 8MB L3 cache.
-    return einsum_op_tensor_mem(q, k, v, 32)
+    return einsum_op_tensor_mem(q, k, v, tensor_mem)
 
 def split_cross_attention_forward_invokeAI(self, x, context=None, mask=None):
     h = self.heads

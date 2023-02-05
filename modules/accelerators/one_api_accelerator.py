@@ -12,6 +12,7 @@ class OneApiAccelerator(BaseAccelerator):
         ipex = intel_extension_for_pytorch
         torch.use_deterministic_algorithms = True
         self.device = torch.device("xpu")
+        #devices.unet_needs_upcast = True
         return
 
     @classmethod
@@ -49,19 +50,20 @@ class OneApiAccelerator(BaseAccelerator):
         return torch.xpu.amp.autocast(enabled=True, dtype=dtype, cache_enabled=False)
     
     def optimize(self, model, dtype):
-        model.training = False
-        return ipex.optimize(model, dtype)
+        #model.training = False
+        #return ipex.optimize(model, dtype)
+        return model
 
     def reset_peak_memory_stats(self):
         return torch.xpu.reset_peak_memory_stats()
 
     def enable_tf32(self):
-        #ipex.set_fp32_math_mode(device="xpu", mode=ipex.FP32MathMode.TF32)
-        ipex.set_fp32_math_mode(device="xpu", mode=ipex.FP32MathMode.BF32)
+        ipex.set_fp32_math_mode(device="xpu", mode=ipex.FP32MathMode.TF32)
+        #ipex.set_fp32_math_mode(device="xpu", mode=ipex.FP32MathMode.BF32)
         return
     
     def get_total_memory(self):
-        return 16 * 1024 * 1024 * 1024
+        return ipex.xpu.get_device_properties(0).total_memory
 
     def memory_stats(self, device=None):
         return torch.xpu.memory_stats(device=self.device if device is None else device)
@@ -84,6 +86,9 @@ class OneApiAccelerator(BaseAccelerator):
         if device is None:
             device = self.device
         return torch.randn_like(x, device=devices.cpu).to(x.device)
+
+    def get_einsum_op_mem(self):
+        return self.get_free_memory() / 3 / (1 << 20)
     
     @property
     def amp(self):
