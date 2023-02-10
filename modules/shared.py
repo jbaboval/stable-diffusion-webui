@@ -109,6 +109,7 @@ class State:
     current_latent = None
     current_image = None
     current_image_sampling_step = 0
+    current_image_job_no = 0
     id_live_preview = 0
     textinfo = None
     time_start = None
@@ -171,6 +172,9 @@ class State:
         if not parallel_processing_allowed:
             return
 
+        if self.sampling_step == self.current_image_sampling_step and self.job_no == self.current_image_job_no:
+            return
+
         if self.sampling_step - self.current_image_sampling_step >= opts.show_progress_every_n_steps and opts.live_previews_enable and opts.show_progress_every_n_steps != -1:
             self.do_set_current_image()
 
@@ -185,6 +189,7 @@ class State:
             self.assign_current_image(modules.sd_samplers.sample_to_image(self.current_latent))
 
         self.current_image_sampling_step = self.sampling_step
+        self.current_image_job_no = self.job_no
 
     def assign_current_image(self, image):
         self.current_image = image
