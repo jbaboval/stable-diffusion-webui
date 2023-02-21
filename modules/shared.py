@@ -7,7 +7,6 @@ import time
 import requests
 
 from PIL import Image
-import gradio as gr
 import tqdm
 
 import modules.interrogate
