@@ -452,13 +452,25 @@ def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_
 
     load_model_weights(sd_model, checkpoint_info, state_dict, timer)
 
+    # Fix up attn_mask size for OpenCLIP
+    if (hasattr(sd_model.cond_stage_model, 'model') and
+        hasattr(sd_model.cond_stage_model.model, 'attn_mask') and
+        len(sd_model.cond_stage_model.model.attn_mask.shape) == 2 and
+        sd_model.cond_stage_model.model.transformer.resblocks[0].attn.num_heads > 1):
+        mask = torch.empty(sd_model.cond_stage_model.model.transformer.resblocks[0].attn.num_heads,
+                           sd_model.cond_stage_model.max_length,
+                           sd_model.cond_stage_model.max_length)
+        mask.fill_(float("-inf"))
+        mask.triu_(1)
+        sd_model.cond_stage_model.model.attn_mask = mask
+
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         lowvram.setup_for_low_vram(sd_model, shared.cmd_opts.medvram)
     else:
         sd_model.to(shared.device)
+        sd_model.cond_stage_model.to(shared.device)
 
     timer.record("move model to device")
-
     sd_hijack.model_hijack.hijack(sd_model)
 
     timer.record("hijack")
