@@ -49,10 +49,10 @@ class OneApiAccelerator(BaseAccelerator):
     def autocast(self, dtype=None):
         return torch.xpu.amp.autocast(enabled=True, dtype=dtype, cache_enabled=False)
     
-    def optimize(self, model, dtype):
+    def optimize(self, model, dtype: torch.dtype):
         #model.training = False
-        #return ipex.optimize(model, dtype)
-        return model
+        return ipex.optimize(model, dtype)
+        #return model
 
     def reset_peak_memory_stats(self):
         return torch.xpu.reset_peak_memory_stats()
