@@ -8,7 +8,7 @@ PS > wsl --update
 
 wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \ | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
 echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-sudo apt install intel-basekit intel-aikit
+sudo apt install intel-basekit intel-aikit intel-oneapi-python
 
 wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | sudo apt-key add -
 sudo apt-add-repository 'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu jammy main'
@@ -31,10 +31,9 @@ sudo update-alternatives --install /usr/bin/python3 python3 /opt/intel/oneapi/in
 
 # Install pytorch+xpu
 
-TORCH_COMMAND=pip install pillow mkl torch==1.13.0a0 torchvision==0.14.1a0 intel_extension_for_pytorch==1.13.10+xpu -f https://developer.intel.com/ipex-whl-stable-xpu-idp
+TORCH_COMMAND=pip install pillow mkl torch==1.13.0a0+git6c9b55e torchvision==0.14.1a0 intel_extension_for_pytorch==1.13.120+xpu -f https://developer.intel.com/ipex-whl-stable-xpu-idp
 
 source /opt/intel/oneapi/setvars.sh
-
 
 # Before trying stable-diffusion, ensure xpu availablilty. If this fails, everything else will fail too:
 

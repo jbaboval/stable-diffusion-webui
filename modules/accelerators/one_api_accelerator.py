@@ -1,18 +1,21 @@
 import numpy
 import torch
+import torch.nn.modules
 #import intel_extension_for_pytorch as ipex
 from modules import devices
 from modules.accelerators.base_accelerator import BaseAccelerator
+from modules.sd_hijack_utils import CondFunc
 
 class OneApiAccelerator(BaseAccelerator):
-
     def __init__(self):
         import intel_extension_for_pytorch
         global ipex
         ipex = intel_extension_for_pytorch
         torch.use_deterministic_algorithms = True
         self.device = torch.device("xpu")
-        #devices.unet_needs_upcast = True
+        CondFunc('torch.nn.modules.GroupNorm.forward',
+                 lambda orig_func, *args, **kwargs: orig_func(args[0], args[1].to(args[0].weight.data.dtype)),
+                 lambda *args, **kwargs: args[2].dtype != args[1].weight.data.dtype)
         return
 
     @classmethod
