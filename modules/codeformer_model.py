@@ -31,6 +31,49 @@ def setup_model(dirname):
         return
 
     try:
+        import re
+        IS_HIGH_VERSION = [int(m) for m in list(re.findall(r"^([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9][a-zA-Z0-9]*)?(\+git.*)?$",\
+            torch.__version__)[0][:3])] >= [1, 12, 0]
+
+        def gpu_is_available():
+            if IS_HIGH_VERSION:
+                if torch.backends.mps.is_available():
+                    return True
+
+            try:
+                import intel_extension_for_pytorch
+                if torch.xpu.is_available():
+                    return True
+            except:
+                pass
+
+            return True if torch.cuda.is_available() and torch.backends.cudnn.is_available() else False
+
+        def get_device(gpu_id=None):
+            if gpu_id is None:
+                gpu_str = ''
+            elif isinstance(gpu_id, int):
+                gpu_str = f':{gpu_id}'
+            else:
+                raise TypeError('Input should be int value.')
+
+            if IS_HIGH_VERSION:
+                if torch.backends.mps.is_available():
+                    return torch.device('mps'+gpu_str)
+
+            try:
+                import intel_extension_for_pytorch
+                if torch.xpu.is_available():
+                    return torch.device('xpu'+gpu_str)
+            except:
+                pass
+
+            return torch.device('cuda'+gpu_str if torch.cuda.is_available() and torch.backends.cudnn.is_available() else 'cpu')
+
+        import basicsr.utils.misc
+        basicsr.utils.misc.get_device = get_device
+        basicsr.utils.misc.gpu_is_available = gpu_is_available
+        
         from torchvision.transforms.functional import normalize
         from modules.codeformer.codeformer_arch import CodeFormer
         from basicsr.utils.download_util import load_file_from_url
@@ -55,7 +98,7 @@ def setup_model(dirname):
                 if self.net is not None and self.face_helper is not None:
                     self.net.to(devices.device_codeformer)
                     return self.net, self.face_helper
-                model_paths = modelloader.load_models(model_path, model_url, self.cmd_dir, download_name='codeformer-v0.1.0.pth')
+                model_paths = modelloader.load_models(model_path, model_url, self.cmd_dir, download_name='codeformer-v0.1.0.pth', ext_filter=['.pth'])
                 if len(model_paths) != 0:
                     ckpt_path = model_paths[0]
                 else:
@@ -106,7 +149,7 @@ def setup_model(dirname):
                             output = self.net(cropped_face_t, w=w if w is not None else shared.opts.code_former_weight, adain=True)[0]
                             restored_face = tensor2img(output, rgb2bgr=True, min_max=(-1, 1))
                         del output
-                        torch.cuda.empty_cache()
+                        devices.empty_cache()
                     except Exception as error:
                         print(f'\tFailed inference for CodeFormer: {error}', file=sys.stderr)
                         restored_face = tensor2img(cropped_face_t, rgb2bgr=True, min_max=(-1, 1))

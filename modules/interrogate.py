@@ -32,7 +32,7 @@ def download_default_clip_interrogate_categories(content_dir):
     category_types = ["artists", "flavors", "mediums", "movements"]
 
     try:
-        os.makedirs(tmpdir)
+        os.makedirs(tmpdir, exist_ok=True)
         for category_type in category_types:
             torch.hub.download_url_to_file(f"https://raw.githubusercontent.com/pharmapsychotic/clip-interrogator/main/clip_interrogator/data/{category_type}.txt", os.path.join(tmpdir, f"{category_type}.txt"))
         os.rename(tmpdir, content_dir)
@@ -41,7 +41,7 @@ def download_default_clip_interrogate_categories(content_dir):
         errors.display(e, "downloading default CLIP interrogate categories")
     finally:
         if os.path.exists(tmpdir):
-            os.remove(tmpdir)
+            os.removedirs(tmpdir)
 
 
 class InterrogateModels:
@@ -149,12 +149,12 @@ class InterrogateModels:
         self.send_clip_to_ram()
         self.send_blip_to_ram()
 
-        devices.torch_gc()
+        devices.gc()
 
     def rank(self, image_features, text_array, top_count=1):
         import clip
 
-        devices.torch_gc()
+        devices.gc()
 
         if shared.opts.interrogate_clip_dict_limit != 0:
             text_array = text_array[0:int(shared.opts.interrogate_clip_dict_limit)]
@@ -191,13 +191,13 @@ class InterrogateModels:
         try:
             if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
                 lowvram.send_everything_to_cpu()
-                devices.torch_gc()
+                devices.gc()
 
             self.load()
 
             caption = self.generate_caption(pil_image)
             self.send_blip_to_ram()
-            devices.torch_gc()
+            devices.gc()
 
             res = caption
 

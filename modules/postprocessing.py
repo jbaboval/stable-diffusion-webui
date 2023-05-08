@@ -7,7 +7,7 @@ from modules.shared import opts
 
 
 def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
-    devices.torch_gc()
+    devices.gc()
 
     shared.state.begin()
     shared.state.job = 'extras'
@@ -18,9 +18,14 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
 
     if extras_mode == 1:
         for img in image_folder:
-            image = Image.open(img)
+            if isinstance(img, Image.Image):
+                image = img
+                fn = ''
+            else:
+                image = Image.open(os.path.abspath(img.name))
+                fn = os.path.splitext(img.orig_name)[0]
             image_data.append(image)
-            image_names.append(os.path.splitext(img.orig_name)[0])
+            image_names.append(fn)
     elif extras_mode == 2:
         assert not shared.cmd_opts.hide_ui_dir_config, '--hide-ui-dir-config option must be disabled'
         assert input_dir, 'input directory not selected'
@@ -72,7 +77,7 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
         if extras_mode != 2 or show_extras_results:
             outputs.append(pp.image)
 
-    devices.torch_gc()
+    devices.gc()
 
     return outputs, ui_common.plaintext_to_html(infotext), ''
 

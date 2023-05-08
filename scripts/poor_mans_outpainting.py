@@ -76,7 +76,7 @@ class Script(scripts.Script):
              mask.height - down - (mask_blur//2 if down > 0 else 0)
         ), fill="black")
 
-        devices.torch_gc()
+        devices.gc()
 
         grid = images.split_grid(img, tile_w=p.width, tile_h=p.height, overlap=pixels)
         grid_mask = images.split_grid(mask, tile_w=p.width, tile_h=p.height, overlap=pixels)
@@ -138,7 +138,7 @@ class Script(scripts.Script):
         combined_image = images.combine_grid(grid)
 
         if opts.samples_save:
-            images.save_image(combined_image, p.outpath_samples, "", initial_seed, p.prompt, opts.grid_format, info=initial_info, p=p)
+            images.save_image(combined_image, p.outpath_samples, "", initial_seed, p.prompt, opts.samples_format, info=initial_info, p=p)
 
         processed = Processed(p, [combined_image], initial_seed, initial_info)
 
