@@ -51,8 +51,7 @@ class MemUsageMonitor(threading.Thread):
             self.data["min_free"] = devices.get_free_memory()
 
             while self.run_flag.is_set():
-                free = accelerator.get_free_memory()
-                total = accelerator.get_total_memory()
+                free = devices.get_free_memory()
                 self.data["min_free"] = min(self.data["min_free"], free)
 
                 time.sleep(1 / self.opts.memmon_poll_rate)

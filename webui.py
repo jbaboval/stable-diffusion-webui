@@ -6,9 +6,11 @@ import signal
 import re
 import warnings
 import json
+import operator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from modules.sd_hijack_utils import CondFunc
 from packaging import version
 
 import logging
@@ -18,6 +20,7 @@ from modules import paths, timer, import_hook, errors
 
 startup_timer = timer.Timer()
 
+CondFunc('lightning_utilities.core.imports.compare_version', lambda orig_func, *args, **kwargs: True, lambda *args, **kwargs: args[1] == 'torch' and args[2] == operator.ge and args[3] == "1.13.0")
 import torch
 import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them
 warnings.filterwarnings(action="ignore", category=DeprecationWarning, module="pytorch_lightning")
