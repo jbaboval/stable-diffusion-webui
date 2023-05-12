@@ -4,17 +4,32 @@
 
 PS > wsl --update
 
+# Update your windows Arc driver to at least 31.0.101.4314
+
 # Install Intel basekit
 
 wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \ | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
 echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-sudo apt install intel-basekit intel-aikit intel-oneapi-python
+sudo apt install intel-basekit intel-aikit
 
 wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | sudo apt-key add -
 sudo apt-add-repository 'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu jammy main'
 
 # Install run-time packages
 sudo apt-get install intel-opencl-icd intel-level-zero-gpu level-zero intel-media-va-driver-non-free libmfx1
+
+~~# Set /usr/bin/python3 to point to Intel python3.9~~
+~~(I have not had success with the latest pytorch+xpu unless using the Intel python distribution)~~
+
+~~sudo update-alternatives --install /usr/bin/python3 python3 /opt/intel/oneapi/intelpython/python3.9/bin/python3.9 1~~
+
+This is optional now. Everything seems to work fine with a stock python 3.10 install.
+
+# Install pytorch+xpu
+
+TORCH_COMMAND=pip install pillow mkl torch==1.13.0a0+git6c9b55e torchvision==0.14.1a0 intel_extension_for_pytorch==1.13.120+xpu -f https://developer.intel.com/ipex-whl-stable-xpu
+
+source /opt/intel/oneapi/setvars.sh
 
 # verify GPU visibility with `sycl-ls`
 ```
@@ -23,17 +38,6 @@ sudo apt-get install intel-opencl-icd intel-level-zero-gpu level-zero intel-medi
 [opencl:gpu:2] Intel(R) OpenCL HD Graphics, Intel(R) Graphics [0x56a0] 3.0 [22.43.24595.30]
 [ext_oneapi_level_zero:gpu:0] Intel(R) Level-Zero, Intel(R) Graphics [0x56a0] 1.3 [1.3.24595]     <----- This one
 ```
-
-# Set /usr/bin/python3 to point to Intel python3.9
-(I have not had success with the latest pytorch+xpu unless using the Intel python distribution)
-
-sudo update-alternatives --install /usr/bin/python3 python3 /opt/intel/oneapi/intelpython/python3.9/bin/python3.9 1
-
-# Install pytorch+xpu
-
-TORCH_COMMAND=pip install pillow mkl torch==1.13.0a0+git6c9b55e torchvision==0.14.1a0 intel_extension_for_pytorch==1.13.120+xpu -f https://developer.intel.com/ipex-whl-stable-xpu-idp
-
-source /opt/intel/oneapi/setvars.sh
 
 # Before trying stable-diffusion, ensure xpu availablilty. If this fails, everything else will fail too:
 
